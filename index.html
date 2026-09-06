@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>おでかけずかん</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="oz-app">
+
+  <header class="oz-header">
+    <div>
+      <h1>おでかけずかん</h1>
+      <p>家族のお気に入りスポット手帳</p>
+    </div>
+    <button type="button" class="oz-btn oz-btn-primary oz-add-btn" id="openAddBtn">
+      ＋ 追加する
+    </button>
+  </header>
+
+  <div class="oz-filters">
+    <div class="oz-search">
+      🔍
+      <input type="text" id="searchInput" placeholder="名前や場所でさがす" />
+    </div>
+
+    <div class="oz-chip-row" id="typeFilterRow">
+      <button type="button" class="oz-chip is-active" data-type-filter="all">すべて</button>
+      <button type="button" class="oz-chip" data-type-filter="pool">🏊 プール</button>
+      <button type="button" class="oz-chip" data-type-filter="park">🌳 公園</button>
+      <button type="button" class="oz-chip" data-type-filter="other">📍 その他</button>
+    </div>
+
+    <div class="oz-chip-row" id="weatherFilterRow">
+      <button type="button" class="oz-chip" data-weather-filter="sunny">☀️ 晴れの日</button>
+      <button type="button" class="oz-chip" data-weather-filter="rainy">☔ 雨の日</button>
+      <button type="button" class="oz-chip" data-weather-filter="cold">❄️ 寒い日</button>
+      <button type="button" class="oz-chip" data-weather-filter="hot">🔥 暑い日</button>
+    </div>
+  </div>
+
+  <div id="statusMsg" class="oz-save-error" hidden></div>
+
+  <main class="oz-main">
+    <div id="loadingMsg" class="oz-empty">読み込み中…</div>
+    <div id="emptyMsg" class="oz-empty" hidden></div>
+    <div id="grid" class="oz-grid"></div>
+  </main>
+
+</div>
+
+<!-- 追加・編集フォーム -->
+<div id="overlay" class="oz-overlay" hidden>
+  <div class="oz-sheet">
+
+    <div class="oz-sheet-header">
+      <button type="button" class="oz-icon-btn" id="closeBtnLeft">←</button>
+      <h2 id="formTitle">おでかけを追加</h2>
+      <button type="button" class="oz-icon-btn" id="closeBtnRight">✕</button>
+    </div>
+
+    <div class="oz-sheet-body">
+
+      <section class="oz-field">
+        <label>名前</label>
+        <input type="text" id="f-name" placeholder="例）〇〇市民プール" />
+        <p class="oz-error" id="nameError" hidden>名前を入力してください</p>
+      </section>
+
+      <section class="oz-field">
+        <label>種類</label>
+        <div class="oz-segmented" id="typeSegment">
+          <button type="button" class="oz-seg-btn seg-pool" data-type-option="pool">🏊 プール</button>
+          <button type="button" class="oz-seg-btn seg-park" data-type-option="park">🌳 公園</button>
+          <button type="button" class="oz-seg-btn seg-other" data-type-option="other">📍 その他</button>
+        </div>
+      </section>
+
+      <section class="oz-field">
+        <label>住所・目印になる場所</label>
+        <input type="text" id="f-address" placeholder="道順の検索に使います" />
+      </section>
+
+      <section class="oz-field">
+        <label>行くのにおすすめの天気</label>
+        <div class="oz-chip-row" id="weatherFormRow">
+          <button type="button" class="oz-chip" data-weather-option="sunny">☀️ 晴れの日</button>
+          <button type="button" class="oz-chip" data-weather-option="rainy">☔ 雨の日</button>
+          <button type="button" class="oz-chip" data-weather-option="cold">❄️ 寒い日</button>
+          <button type="button" class="oz-chip" data-weather-option="hot">🔥 暑い日</button>
+        </div>
+      </section>
+
+      <section class="oz-field-grid">
+        <div class="oz-field">
+          <label>📏 距離（km）</label>
+          <input type="number" inputmode="decimal" id="f-distance" />
+        </div>
+        <div class="oz-field">
+          <label>⏱ 移動時間（分）</label>
+          <input type="number" inputmode="numeric" id="f-time" />
+        </div>
+        <div class="oz-field">
+          <label>💴 高速代（円）</label>
+          <input type="number" inputmode="numeric" id="f-toll" />
+        </div>
+      </section>
+
+      <section class="oz-field">
+        <label>総合評価</label>
+        <div class="oz-stars stars-lg" id="f-overallStars"></div>
+      </section>
+
+      <div id="poolSection">
+        <div class="oz-divider">プールの評価</div>
+
+        <section class="oz-field">
+          <label>更衣室の清潔さ</label>
+          <div class="oz-stars stars-md" id="f-changingRoomStars"></div>
+        </section>
+
+        <section class="oz-field">
+          <label>プールの特徴</label>
+          <div class="oz-chip-row" id="featureRow">
+            <button type="button" class="oz-chip" data-feature="ウォータースライダー">ウォータースライダー</button>
+            <button type="button" class="oz-chip" data-feature="流れるプール">流れるプール</button>
+            <button type="button" class="oz-chip" data-feature="幼児用プール">幼児用プール</button>
+            <button type="button" class="oz-chip" data-feature="屋内プール">屋内プール</button>
+            <button type="button" class="oz-chip" data-feature="飛び込み台">飛び込み台</button>
+            <button type="button" class="oz-chip" data-feature="歩行浴コース">歩行浴コース</button>
+          </div>
+        </section>
+
+        <section class="oz-field">
+          <label class="oz-checkbox-label">
+            <input type="checkbox" id="f-reservation" />
+            📅 予約が必要
+          </label>
+        </section>
+
+        <section class="oz-field">
+          <label>利用時間・時間制限</label>
+          <input type="text" id="f-timeLimit" placeholder="例）2時間入替制" />
+        </section>
+      </div>
+
+      <section class="oz-field">
+        <label>💴 料金</label>
+        <input type="text" id="f-price" placeholder="例）大人500円・子ども200円" />
+      </section>
+
+      <div class="oz-divider">駐車場</div>
+      <section class="oz-field-grid oz-field-grid-2">
+        <div class="oz-field">
+          <label>🚗 台数・広さ</label>
+          <input type="text" id="f-parkingCapacity" placeholder="例）50台・広め" />
+        </div>
+        <div class="oz-field">
+          <label>停めやすさ</label>
+          <div class="oz-stars stars-md" id="f-parkingEaseStars"></div>
+        </div>
+      </section>
+
+      <section class="oz-field">
+        <label>メモ</label>
+        <textarea id="f-notes" rows="3" placeholder="持ち物、混雑時間帯、子どもの反応など"></textarea>
+      </section>
+
+    </div>
+
+    <div class="oz-sheet-footer">
+      <button type="button" class="oz-btn oz-btn-danger" id="deleteBtn" hidden>🗑 削除</button>
+      <button type="button" class="oz-btn oz-btn-ghost" id="cancelBtn">キャンセル</button>
+      <button type="button" class="oz-btn oz-btn-primary" id="saveBtn">保存する</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Firebase SDK (compat版・ビルド不要) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
