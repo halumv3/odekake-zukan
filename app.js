@@ -2,7 +2,68 @@
 // firebaseConfig は firebase-config.js で定義されています
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 const placesCol = db.collection("places");
+
+let listenerStarted = false;
+
+function startListeningToPlaces() {
+  if (listenerStarted) return;
+  listenerStarted = true;
+  placesCol.orderBy("createdAt", "desc").onSnapshot(
+    (snapshot) => {
+      places = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      loaded = true;
+      showStatus("");
+      render();
+    },
+    (err) => {
+      console.error(err);
+      showStatus("データの読み込みに失敗しました。Firestoreのセキュリティルールを確認してください。");
+      document.getElementById("loadingMsg").hidden = true;
+    }
+  );
+}
+
+auth.onAuthStateChanged((user) => {
+  const loginScreen = document.getElementById("loginScreen");
+  const appRoot = document.getElementById("appRoot");
+  if (user) {
+    loginScreen.hidden = true;
+    appRoot.hidden = false;
+    startListeningToPlaces();
+  } else {
+    loginScreen.hidden = false;
+    appRoot.hidden = true;
+  }
+});
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const errorEl = document.getElementById("loginError");
+  errorEl.hidden = true;
+  if (!email || !password) {
+    errorEl.textContent = "メールアドレスとパスワードを入力してください";
+    errorEl.hidden = false;
+    return;
+  }
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (e) {
+    console.error(e);
+    errorEl.textContent = "ログインできませんでした。メールアドレスかパスワードを確認してください。";
+    errorEl.hidden = false;
+  }
+});
+
+document.getElementById("loginPassword").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("loginBtn").click();
+});
+
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  auth.signOut();
+});
 
 /* ---------- 定数 ---------- */
 
@@ -103,21 +164,8 @@ function showStatus(msg) {
   }
 }
 
-/* ---------- Firestore 読み込み（リアルタイム同期） ---------- */
-
-placesCol.orderBy("createdAt", "desc").onSnapshot(
-  (snapshot) => {
-    places = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    loaded = true;
-    showStatus("");
-    render();
-  },
-  (err) => {
-    console.error(err);
-    showStatus("データの読み込みに失敗しました。firebase-config.js の設定と、Firestoreのセキュリティルールを確認してください。");
-    document.getElementById("loadingMsg").hidden = true;
-  }
-);
+/* ---------- Firestore 読み込み（リアルタイム同期・ログイン後に開始） ---------- */
+// 実際の読み込み処理は startListeningToPlaces() にまとめてあります（上部を参照）
 
 async function saveToFirestore(id, data) {
   try {

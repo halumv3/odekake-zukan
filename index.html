@@ -8,6 +8,20 @@
 </head>
 <body>
 
+<!-- ログイン画面 -->
+<div id="loginScreen" class="oz-login-screen">
+  <div class="oz-login-card">
+    <h1>おでかけずかん</h1>
+    <p>ログインして続ける</p>
+    <input type="email" id="loginEmail" placeholder="メールアドレス" autocomplete="username" />
+    <input type="password" id="loginPassword" placeholder="パスワード" autocomplete="current-password" />
+    <button type="button" id="loginBtn" class="oz-btn oz-btn-primary">ログイン</button>
+    <p id="loginError" class="oz-error" hidden></p>
+  </div>
+</div>
+
+<div id="appRoot" hidden>
+
 <div class="oz-app">
 
   <header class="oz-header">
@@ -17,6 +31,7 @@
     </div>
     <div class="oz-header-actions">
       <button type="button" class="oz-btn oz-btn-ghost oz-home-btn" id="homeSettingsBtn" title="自宅住所の設定（この端末だけに保存されます）">🏠</button>
+      <button type="button" class="oz-btn oz-btn-ghost oz-home-btn" id="logoutBtn" title="ログアウト">🚪</button>
       <button type="button" class="oz-btn oz-btn-primary oz-add-btn" id="openAddBtn">
         ＋ 追加する
       </button>
@@ -266,9 +281,12 @@
   </div>
 </div>
 
+</div><!-- /appRoot -->
+
 <!-- Firebase SDK (compat版・ビルド不要) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
 <script src="firebase-config.js"></script>
 <script src="app.js"></script>

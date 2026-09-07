@@ -574,3 +574,42 @@ body {
 }
 
 #customTypeSection.hidden { display: none; }
+
+.oz-login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.oz-login-screen[hidden] { display: none; }
+.oz-login-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 18px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+.oz-login-card h1 {
+  font-size: 22px;
+  margin: 0;
+}
+.oz-login-card p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--c-ink-soft);
+}
+.oz-login-card input {
+  border: 1px solid var(--c-line-strong);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+}
+#appRoot[hidden] { display: none; }
