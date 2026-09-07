@@ -15,15 +15,24 @@
       <h1>おでかけずかん</h1>
       <p>家族のお気に入りスポット手帳</p>
     </div>
-    <button type="button" class="oz-btn oz-btn-primary oz-add-btn" id="openAddBtn">
-      ＋ 追加する
-    </button>
+    <div class="oz-header-actions">
+      <button type="button" class="oz-btn oz-btn-ghost oz-home-btn" id="homeSettingsBtn" title="自宅住所の設定（この端末だけに保存されます）">🏠</button>
+      <button type="button" class="oz-btn oz-btn-primary oz-add-btn" id="openAddBtn">
+        ＋ 追加する
+      </button>
+    </div>
   </header>
 
   <div class="oz-filters">
     <div class="oz-search">
       🔍
       <input type="text" id="searchInput" placeholder="名前や場所でさがす" />
+    </div>
+
+    <div class="oz-chip-row" id="statusFilterRow">
+      <button type="button" class="oz-chip is-active" data-status-filter="all">すべて</button>
+      <button type="button" class="oz-chip" data-status-filter="visited">✅ 行った</button>
+      <button type="button" class="oz-chip" data-status-filter="wishlist">📌 行きたい</button>
     </div>
 
     <div class="oz-chip-row" id="typeFilterRow">
@@ -70,12 +79,25 @@
       </section>
 
       <section class="oz-field">
+        <label>ステータス</label>
+        <div class="oz-segmented" id="statusSegment">
+          <button type="button" class="oz-seg-btn seg-neutral" data-status-option="visited">✅ 行った</button>
+          <button type="button" class="oz-seg-btn seg-neutral" data-status-option="wishlist">📌 行きたい</button>
+        </div>
+      </section>
+
+      <section class="oz-field">
         <label>種類</label>
         <div class="oz-segmented" id="typeSegment">
           <button type="button" class="oz-seg-btn seg-pool" data-type-option="pool">🏊 プール</button>
           <button type="button" class="oz-seg-btn seg-park" data-type-option="park">🌳 公園</button>
           <button type="button" class="oz-seg-btn seg-other" data-type-option="other">📍 その他</button>
         </div>
+      </section>
+
+      <section class="oz-field" id="customTypeSection">
+        <label>その他の種類（例：お店、水族館など）</label>
+        <input type="text" id="f-customType" placeholder="例）お店" />
       </section>
 
       <section class="oz-field">
@@ -93,6 +115,22 @@
         </div>
       </section>
 
+      <div class="oz-divider">訪問記録</div>
+      <section class="oz-field">
+        <div id="visitList" class="oz-visit-list"></div>
+        <div class="oz-visit-add">
+          <input type="date" id="v-date" />
+          <select id="v-weather">
+            <option value="sunny">☀️ 晴れ</option>
+            <option value="cloudy">☁️ 曇り</option>
+            <option value="rainy">☔ 雨</option>
+            <option value="snowy">❄️ 雪</option>
+          </select>
+          <input type="text" id="v-note" placeholder="その日のメモ（任意）" />
+          <button type="button" class="oz-btn oz-btn-ghost" id="addVisitBtn">＋ 追加</button>
+        </div>
+      </section>
+
       <section class="oz-field">
         <label>写真（数枚まで・自動で圧縮されます）</label>
         <div class="oz-photo-row" id="photoRow"></div>
@@ -104,6 +142,15 @@
           🧭 Googleマップで経路を確認する
         </a>
         <p class="oz-hint">別タブで開いた地図を見ながら、下の欄に入力すると楽です</p>
+      </section>
+
+      <section class="oz-field">
+        <label>移動手段</label>
+        <div class="oz-segmented" id="transportSegment">
+          <button type="button" class="oz-seg-btn seg-neutral" data-transport-option="car">🚗 車</button>
+          <button type="button" class="oz-seg-btn seg-neutral" data-transport-option="bus">🚌 バス・電車</button>
+          <button type="button" class="oz-seg-btn seg-neutral" data-transport-option="walk">🚶 徒歩</button>
+        </div>
       </section>
 
       <section class="oz-field-grid">
@@ -194,6 +241,28 @@
       <button type="button" class="oz-btn oz-btn-primary" id="saveBtn">保存する</button>
     </div>
 
+  </div>
+</div>
+
+<!-- 自宅住所の設定（この端末のみに保存・データベースには送信しません） -->
+<div id="homeOverlay" class="oz-overlay" hidden>
+  <div class="oz-sheet oz-sheet-small">
+    <div class="oz-sheet-header">
+      <span></span>
+      <h2>🏠 自宅住所の設定</h2>
+      <button type="button" class="oz-icon-btn" id="homeCloseBtn">✕</button>
+    </div>
+    <div class="oz-sheet-body">
+      <p class="oz-hint">この端末のブラウザだけに保存されます。データベースには送信されないので、他の人には共有されません。</p>
+      <section class="oz-field">
+        <label>自宅の住所</label>
+        <input type="text" id="homeAddressInput" placeholder="例）東京都〇〇区〇〇1-2-3" />
+      </section>
+    </div>
+    <div class="oz-sheet-footer">
+      <button type="button" class="oz-btn oz-btn-ghost" id="homeClearBtn">削除</button>
+      <button type="button" class="oz-btn oz-btn-primary" id="homeSaveBtn">保存する</button>
+    </div>
   </div>
 </div>
 

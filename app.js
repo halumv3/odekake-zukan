@@ -18,12 +18,30 @@ const TYPE_LABELS = {
   other: { icon: "📍", label: "その他" },
 };
 
+const VISIT_WEATHER_LABELS = {
+  sunny: "☀️ 晴れ",
+  cloudy: "☁️ 曇り",
+  rainy: "☔ 雨",
+  snowy: "❄️ 雪",
+};
+
+const HOME_ADDRESS_KEY = "oz-home-address"; // この端末にだけ保存。Firestoreには送らない
+
+function getHomeAddress() {
+  try {
+    return localStorage.getItem(HOME_ADDRESS_KEY) || "";
+  } catch (e) {
+    return "";
+  }
+}
+
 /* ---------- 状態 ---------- */
 
 let places = [];
 let loaded = false;
 let query = "";
 let typeFilter = "all";
+let statusFilter = "all";
 let weatherFilter = new Set();
 
 let draft = null;      // フォームで編集中のデータ
@@ -37,14 +55,18 @@ function emptyDraft() {
   return {
     name: "",
     type: "pool",
+    customType: "",
+    status: "visited",
     address: "",
     weather: { sunny: false, rainy: false, cold: false, hot: false },
     distanceKm: "",
     travelTimeMin: "",
+    transportMode: "car",
     highwayToll: "",
     overallStars: 0,
     overallReview: "",
     photos: [],
+    visits: [],
     changingRoomStars: 0,
     poolFeatures: [],
     reservationRequired: false,
@@ -58,7 +80,10 @@ function emptyDraft() {
 
 function mapsDirectionsUrl(place) {
   const q = place.address || place.name;
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(q)}`;
+  const home = getHomeAddress();
+  const params = new URLSearchParams({ api: "1", destination: q });
+  if (home) params.set("origin", home);
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
 function escapeHtml(str) {
@@ -141,6 +166,7 @@ function filteredPlaces() {
   return places
     .filter((p) => {
       if (typeFilter !== "all" && p.type !== typeFilter) return false;
+      if (statusFilter !== "all" && (p.status || "visited") !== statusFilter) return false;
       if (weatherFilter.size > 0) {
         const w = p.weather || {};
         let match = false;
@@ -181,17 +207,30 @@ function starsStaticHtml(value, size) {
   return html;
 }
 
+const TRANSPORT_ICONS = { car: "🚗", bus: "🚌", walk: "🚶" };
+
+function visitSummaryHtml(visits) {
+  if (!visits || visits.length === 0) return "";
+  const sorted = [...visits].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const last = sorted[0];
+  const weatherIcon = VISIT_WEATHER_LABELS[last.weather] ? VISIT_WEATHER_LABELS[last.weather].split(" ")[0] : "";
+  return `<div class="oz-info-row">🗓 <span class="oz-info-value">${visits.length}回・最終 ${escapeHtml(last.date || "")} ${weatherIcon}</span></div>`;
+}
+
 function cardHtml(place) {
   const t = TYPE_LABELS[place.type] || TYPE_LABELS.pool;
+  const typeLabel = (place.type === "other" && place.customType) ? place.customType : t.label;
   const cover = (place.photos && place.photos[0]) ? `<div class="oz-card-cover"><img src="${place.photos[0]}" alt=""></div>` : "";
   const reviewText = place.overallReview
     ? escapeHtml(place.overallReview)
     : "レビュー未記入です。「くわしく見る」から書けます。";
+  const wishlistBadge = place.status === "wishlist" ? `<span class="oz-status-badge">📌 行きたい</span>` : "";
   return `
     <div class="oz-card" data-id="${place.id}">
       ${cover}
+      ${wishlistBadge}
       <div class="oz-card-top">
-        <span class="oz-type-pill ${place.type}">${t.icon} ${t.label}</span>
+        <span class="oz-type-pill ${place.type}">${t.icon} ${escapeHtml(typeLabel)}</span>
         <button type="button" class="oz-star-toggle" data-review-id="${place.id}">${starsStaticHtml(place.overallStars, "sm")}</button>
       </div>
       <h3 class="oz-card-title">${escapeHtml(place.name) || "名前未設定"}</h3>
@@ -200,10 +239,11 @@ function cardHtml(place) {
       ${weatherBadgesHtml(place.weather)}
       <div class="oz-info-grid">
         ${infoRowHtml("📏", "距離", place.distanceKm ? `${place.distanceKm} km` : "")}
-        ${infoRowHtml("⏱", "移動", place.travelTimeMin ? `${place.travelTimeMin} 分` : "")}
+        ${infoRowHtml(TRANSPORT_ICONS[place.transportMode] || "⏱", "移動", place.travelTimeMin ? `${place.travelTimeMin} 分` : "")}
         ${infoRowHtml("💴", "高速代", place.highwayToll ? `${place.highwayToll} 円` : "")}
         ${infoRowHtml("🚗", "駐車場", place.parkingCapacity)}
       </div>
+      ${visitSummaryHtml(place.visits)}
       <div class="oz-card-actions">
         <a class="oz-btn oz-btn-ghost" href="${mapsDirectionsUrl(place)}" target="_blank" rel="noopener noreferrer">🧭 道順を見る</a>
         <button type="button" class="oz-btn oz-btn-primary" data-open-id="${place.id}">くわしく見る</button>
@@ -266,6 +306,16 @@ document.getElementById("searchInput").addEventListener("input", (e) => {
   render();
 });
 
+document.getElementById("statusFilterRow").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-status-filter]");
+  if (!btn) return;
+  statusFilter = btn.getAttribute("data-status-filter");
+  document.querySelectorAll("#statusFilterRow [data-status-filter]").forEach((b) => {
+    b.classList.toggle("is-active", b === btn);
+  });
+  render();
+});
+
 document.getElementById("typeFilterRow").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-type-filter]");
   if (!btn) return;
@@ -300,14 +350,18 @@ function openForm(place) {
     ? {
         name: place.name || "",
         type: place.type || "pool",
+        customType: place.customType || "",
+        status: place.status || "visited",
         address: place.address || "",
         weather: { sunny: false, rainy: false, cold: false, hot: false, ...(place.weather || {}) },
         distanceKm: place.distanceKm || "",
         travelTimeMin: place.travelTimeMin || "",
+        transportMode: place.transportMode || "car",
         highwayToll: place.highwayToll || "",
         overallStars: place.overallStars || 0,
         overallReview: place.overallReview || "",
         photos: place.photos || [],
+        visits: place.visits || [],
         changingRoomStars: place.changingRoomStars || 0,
         poolFeatures: place.poolFeatures || [],
         reservationRequired: !!place.reservationRequired,
@@ -335,10 +389,14 @@ function openForm(place) {
   document.getElementById("f-notes").value = draft.notes;
   document.getElementById("f-reservation").checked = draft.reservationRequired;
   document.getElementById("f-overallReview").value = draft.overallReview;
+  document.getElementById("f-customType").value = draft.customType;
 
   renderPhotoRow();
+  renderVisitList();
 
   updateTypeUI();
+  updateStatusUI();
+  updateTransportUI();
   updateWeatherFormUI();
   updateFeatureUI();
   wireStars();
@@ -366,6 +424,19 @@ function updateTypeUI() {
     btn.classList.toggle("is-active", btn.getAttribute("data-type-option") === draft.type);
   });
   document.getElementById("poolSection").classList.toggle("hidden", draft.type !== "pool");
+  document.getElementById("customTypeSection").classList.toggle("hidden", draft.type !== "other");
+}
+
+function updateStatusUI() {
+  document.querySelectorAll("#statusSegment [data-status-option]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.getAttribute("data-status-option") === draft.status);
+  });
+}
+
+function updateTransportUI() {
+  document.querySelectorAll("#transportSegment [data-transport-option]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.getAttribute("data-transport-option") === draft.transportMode);
+  });
 }
 
 function updateWeatherFormUI() {
@@ -385,6 +456,56 @@ function updateFeatureUI() {
 const MAX_PHOTOS = 4;
 const MAX_PHOTO_WIDTH = 700;
 const PHOTO_QUALITY = 0.5;
+
+function renderVisitList() {
+  const list = document.getElementById("visitList");
+  const visits = draft.visits || [];
+  const sorted = visits
+    .map((v, idx) => ({ ...v, _idx: idx }))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  if (sorted.length === 0) {
+    list.innerHTML = `<p class="oz-muted">まだ記録がありません。下から追加できます。</p>`;
+    return;
+  }
+
+  list.innerHTML = sorted
+    .map((v) => {
+      const w = VISIT_WEATHER_LABELS[v.weather] || "";
+      return `
+        <div class="oz-visit-row">
+          <span class="oz-visit-date">${escapeHtml(v.date || "日付未設定")}</span>
+          <span>${w}</span>
+          <span class="oz-visit-note">${escapeHtml(v.note || "")}</span>
+          <button type="button" class="oz-visit-remove" data-visit-idx="${v._idx}">✕</button>
+        </div>
+      `;
+    })
+    .join("");
+
+  list.querySelectorAll("[data-visit-idx]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.getAttribute("data-visit-idx"));
+      draft.visits.splice(idx, 1);
+      renderVisitList();
+    });
+  });
+}
+
+document.getElementById("addVisitBtn").addEventListener("click", () => {
+  if (!draft) return;
+  const date = document.getElementById("v-date").value;
+  const weather = document.getElementById("v-weather").value;
+  const note = document.getElementById("v-note").value.trim();
+  if (!date) {
+    alert("日付を選んでください");
+    return;
+  }
+  draft.visits.push({ date, weather, note });
+  document.getElementById("v-date").value = "";
+  document.getElementById("v-note").value = "";
+  renderVisitList();
+});
 
 function renderPhotoRow() {
   const row = document.getElementById("photoRow");
@@ -452,7 +573,10 @@ document.getElementById("f-mapsHelper").addEventListener("click", (e) => {
     alert("先に名前か住所を入力してください");
     return;
   }
-  window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(q)}`, "_blank");
+  const home = getHomeAddress();
+  const params = new URLSearchParams({ api: "1", destination: q });
+  if (home) params.set("origin", home);
+  window.open(`https://www.google.com/maps/dir/?${params.toString()}`, "_blank");
 });
 
 document.getElementById("f-name").addEventListener("input", (e) => {
@@ -463,6 +587,20 @@ document.getElementById("f-name").addEventListener("input", (e) => {
 
 document.getElementById("f-address").addEventListener("input", () => {
   addressManuallyEdited = true;
+});
+
+document.getElementById("statusSegment").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-status-option]");
+  if (!btn || !draft) return;
+  draft.status = btn.getAttribute("data-status-option");
+  updateStatusUI();
+});
+
+document.getElementById("transportSegment").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-transport-option]");
+  if (!btn || !draft) return;
+  draft.transportMode = btn.getAttribute("data-transport-option");
+  updateTransportUI();
 });
 
 document.getElementById("typeSegment").addEventListener("click", (e) => {
@@ -518,6 +656,8 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
   draft.notes = document.getElementById("f-notes").value.trim();
   draft.reservationRequired = document.getElementById("f-reservation").checked;
   draft.overallReview = document.getElementById("f-overallReview").value.trim();
+  draft.customType = document.getElementById("f-customType").value.trim();
+  draft.transportMode = draft.transportMode || "car";
 
   await saveToFirestore(editingId, draft);
   closeForm();
@@ -528,6 +668,37 @@ document.getElementById("deleteBtn").addEventListener("click", async () => {
   if (!confirm("このスポットを削除しますか？")) return;
   await deleteFromFirestore(editingId);
   closeForm();
+});
+
+/* ---------- 自宅住所の設定（この端末のみ・Firestoreには送信しない） ---------- */
+
+const homeOverlay = document.getElementById("homeOverlay");
+
+document.getElementById("homeSettingsBtn").addEventListener("click", () => {
+  document.getElementById("homeAddressInput").value = getHomeAddress();
+  homeOverlay.hidden = false;
+});
+document.getElementById("homeCloseBtn").addEventListener("click", () => {
+  homeOverlay.hidden = true;
+});
+document.getElementById("homeSaveBtn").addEventListener("click", () => {
+  const value = document.getElementById("homeAddressInput").value.trim();
+  try {
+    if (value) localStorage.setItem(HOME_ADDRESS_KEY, value);
+    else localStorage.removeItem(HOME_ADDRESS_KEY);
+  } catch (e) {
+    console.error(e);
+  }
+  homeOverlay.hidden = true;
+  render(); // 道順リンクに反映
+});
+document.getElementById("homeClearBtn").addEventListener("click", () => {
+  try {
+    localStorage.removeItem(HOME_ADDRESS_KEY);
+  } catch (e) {
+    console.error(e);
+  }
+  document.getElementById("homeAddressInput").value = "";
 });
 
 /* ---------- 初期描画 ---------- */
