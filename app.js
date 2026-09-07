@@ -28,6 +28,8 @@ let weatherFilter = new Set();
 
 let draft = null;      // フォームで編集中のデータ
 let editingId = null;  // null なら新規追加
+let addressManuallyEdited = false; // 住所欄をユーザーが自分で編集したか
+let lastAutoAddress = ""; // 施設名から自動入力した住所の直近の値（手動編集の判定に使用）
 
 /* ---------- ユーティリティ ---------- */
 
@@ -305,6 +307,7 @@ function openForm(place) {
 
   document.getElementById("f-name").value = draft.name;
   document.getElementById("f-address").value = draft.address;
+  addressManuallyEdited = !!draft.address;
   document.getElementById("f-distance").value = draft.distanceKm;
   document.getElementById("f-time").value = draft.travelTimeMin;
   document.getElementById("f-toll").value = draft.highwayToll;
@@ -357,6 +360,16 @@ function updateFeatureUI() {
     btn.classList.toggle("is-active", draft.poolFeatures.includes(key));
   });
 }
+
+document.getElementById("f-name").addEventListener("input", (e) => {
+  if (!addressManuallyEdited) {
+    document.getElementById("f-address").value = e.target.value;
+  }
+});
+
+document.getElementById("f-address").addEventListener("input", () => {
+  addressManuallyEdited = true;
+});
 
 document.getElementById("typeSegment").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-type-option]");
