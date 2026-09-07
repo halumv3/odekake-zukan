@@ -395,6 +395,7 @@ document.getElementById("closeBtnRight").addEventListener("click", closeForm);
 document.getElementById("cancelBtn").addEventListener("click", closeForm);
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
+  if (!draft) return;
   draft.name = document.getElementById("f-name").value.trim();
   if (!draft.name) {
     document.getElementById("nameError").hidden = false;
