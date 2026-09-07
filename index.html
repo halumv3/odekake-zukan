@@ -93,6 +93,19 @@
         </div>
       </section>
 
+      <section class="oz-field">
+        <label>写真（数枚まで・自動で圧縮されます）</label>
+        <div class="oz-photo-row" id="photoRow"></div>
+        <input type="file" id="f-photoInput" accept="image/*" multiple />
+      </section>
+
+      <section class="oz-field">
+        <a href="#" id="f-mapsHelper" class="oz-btn oz-btn-ghost" target="_blank" rel="noopener noreferrer">
+          🧭 Googleマップで経路を確認する
+        </a>
+        <p class="oz-hint">別タブで開いた地図を見ながら、下の欄に入力すると楽です</p>
+      </section>
+
       <section class="oz-field-grid">
         <div class="oz-field">
           <label>📏 距離（km）</label>
@@ -111,6 +124,11 @@
       <section class="oz-field">
         <label>総合評価</label>
         <div class="oz-stars stars-lg" id="f-overallStars"></div>
+      </section>
+
+      <section class="oz-field">
+        <label>総合評価コメント</label>
+        <textarea id="f-overallReview" rows="3" placeholder="よかった点・気になった点など、一覧画面の★から見られます"></textarea>
       </section>
 
       <div id="poolSection">

@@ -43,6 +43,8 @@ function emptyDraft() {
     travelTimeMin: "",
     highwayToll: "",
     overallStars: 0,
+    overallReview: "",
+    photos: [],
     changingRoomStars: 0,
     poolFeatures: [],
     reservationRequired: false,
@@ -181,14 +183,20 @@ function starsStaticHtml(value, size) {
 
 function cardHtml(place) {
   const t = TYPE_LABELS[place.type] || TYPE_LABELS.pool;
+  const cover = (place.photos && place.photos[0]) ? `<div class="oz-card-cover"><img src="${place.photos[0]}" alt=""></div>` : "";
+  const reviewText = place.overallReview
+    ? escapeHtml(place.overallReview)
+    : "レビュー未記入です。「くわしく見る」から書けます。";
   return `
     <div class="oz-card" data-id="${place.id}">
+      ${cover}
       <div class="oz-card-top">
         <span class="oz-type-pill ${place.type}">${t.icon} ${t.label}</span>
-        ${starsStaticHtml(place.overallStars, "sm")}
+        <button type="button" class="oz-star-toggle" data-review-id="${place.id}">${starsStaticHtml(place.overallStars, "sm")}</button>
       </div>
       <h3 class="oz-card-title">${escapeHtml(place.name) || "名前未設定"}</h3>
       ${place.address ? `<div class="oz-address">📍 <span>${escapeHtml(place.address)}</span></div>` : ""}
+      <div class="oz-review-panel" id="review-${place.id}" hidden>${reviewText}</div>
       ${weatherBadgesHtml(place.weather)}
       <div class="oz-info-grid">
         ${infoRowHtml("📏", "距離", place.distanceKm ? `${place.distanceKm} km` : "")}
@@ -241,6 +249,14 @@ function render() {
       if (place) openForm(place);
     });
   });
+
+  grid.querySelectorAll("[data-review-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-review-id");
+      const panel = document.getElementById(`review-${id}`);
+      if (panel) panel.hidden = !panel.hidden;
+    });
+  });
 }
 
 /* ---------- フィルターバーの操作 ---------- */
@@ -290,6 +306,8 @@ function openForm(place) {
         travelTimeMin: place.travelTimeMin || "",
         highwayToll: place.highwayToll || "",
         overallStars: place.overallStars || 0,
+        overallReview: place.overallReview || "",
+        photos: place.photos || [],
         changingRoomStars: place.changingRoomStars || 0,
         poolFeatures: place.poolFeatures || [],
         reservationRequired: !!place.reservationRequired,
@@ -316,6 +334,9 @@ function openForm(place) {
   document.getElementById("f-parkingCapacity").value = draft.parkingCapacity;
   document.getElementById("f-notes").value = draft.notes;
   document.getElementById("f-reservation").checked = draft.reservationRequired;
+  document.getElementById("f-overallReview").value = draft.overallReview;
+
+  renderPhotoRow();
 
   updateTypeUI();
   updateWeatherFormUI();
@@ -360,6 +381,79 @@ function updateFeatureUI() {
     btn.classList.toggle("is-active", draft.poolFeatures.includes(key));
   });
 }
+
+const MAX_PHOTOS = 4;
+const MAX_PHOTO_WIDTH = 700;
+const PHOTO_QUALITY = 0.5;
+
+function renderPhotoRow() {
+  const row = document.getElementById("photoRow");
+  row.innerHTML = "";
+  (draft.photos || []).forEach((src, idx) => {
+    const wrap = document.createElement("div");
+    wrap.className = "oz-photo-thumb";
+    wrap.innerHTML = `<img src="${src}" alt=""><button type="button" class="oz-photo-remove" data-remove-idx="${idx}">✕</button>`;
+    row.appendChild(wrap);
+  });
+  row.querySelectorAll("[data-remove-idx]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.getAttribute("data-remove-idx"));
+      draft.photos.splice(idx, 1);
+      renderPhotoRow();
+    });
+  });
+}
+
+function compressImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read error"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("image error"));
+      img.onload = () => {
+        const scale = Math.min(1, MAX_PHOTO_WIDTH / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", PHOTO_QUALITY));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById("f-photoInput").addEventListener("change", async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = "";
+  if (!draft) return;
+  for (const file of files) {
+    if (draft.photos.length >= MAX_PHOTOS) {
+      alert(`写真は${MAX_PHOTOS}枚までです`);
+      break;
+    }
+    try {
+      const dataUrl = await compressImageFile(file);
+      draft.photos.push(dataUrl);
+      renderPhotoRow();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+});
+
+document.getElementById("f-mapsHelper").addEventListener("click", (e) => {
+  e.preventDefault();
+  const q = document.getElementById("f-address").value.trim() || document.getElementById("f-name").value.trim();
+  if (!q) {
+    alert("先に名前か住所を入力してください");
+    return;
+  }
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(q)}`, "_blank");
+});
 
 document.getElementById("f-name").addEventListener("input", (e) => {
   if (!addressManuallyEdited) {
@@ -423,6 +517,7 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
   draft.parkingCapacity = document.getElementById("f-parkingCapacity").value.trim();
   draft.notes = document.getElementById("f-notes").value.trim();
   draft.reservationRequired = document.getElementById("f-reservation").checked;
+  draft.overallReview = document.getElementById("f-overallReview").value.trim();
 
   await saveToFirestore(editingId, draft);
   closeForm();
