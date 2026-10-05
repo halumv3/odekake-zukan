@@ -373,7 +373,7 @@ body {
 .oz-field-grid-2 { grid-template-columns: repeat(2, 1fr); }
 .oz-error { color: var(--c-hot); font-size: 12px; margin: 0; }
 
-.oz-segmented { display: flex; gap: 8px; }
+.oz-segmented { display: flex; gap: 8px; flex-wrap: wrap; }
 .oz-seg-btn {
   flex: 1;
   display: flex;
@@ -389,6 +389,7 @@ body {
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
+  min-width: 90px;
 }
 .oz-seg-btn.is-active { color: #fff; }
 .oz-seg-btn.is-active.seg-pool { background: var(--c-pool); border-color: var(--c-pool); }
@@ -443,6 +444,7 @@ body {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--c-line-strong);
+  cursor: zoom-in;
 }
 .oz-photo-thumb img {
   width: 100%;
@@ -613,3 +615,35 @@ body {
   width: 100%;
 }
 #appRoot[hidden] { display: none; }
+
+/* 写真の拡大表示（ライトボックス） */
+.oz-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+.oz-lightbox[hidden] { display: none; }
+.oz-lightbox img {
+  max-width: 100%;
+  max-height: 90vh;
+  border-radius: 10px;
+  display: block;
+}
+.oz-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--c-ink);
+  font-size: 16px;
+  cursor: pointer;
+}

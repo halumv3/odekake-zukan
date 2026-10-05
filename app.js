@@ -78,13 +78,13 @@ const TYPE_LABELS = {
   park: { icon: "🌳", label: "公園" },
   other: { icon: "📍", label: "その他" },
 };
-
 const VISIT_WEATHER_LABELS = {
   sunny: "☀️ 晴れ",
   cloudy: "☁️ 曇り",
   rainy: "☔ 雨",
   snowy: "❄️ 雪",
 };
+const TRANSPORT_ICONS = { car: "🚗", bus: "🚌", walk: "🚶" };
 
 const HOME_ADDRESS_KEY = "oz-home-address"; // この端末にだけ保存。Firestoreには送らない
 
@@ -108,7 +108,6 @@ let weatherFilter = new Set();
 let draft = null;      // フォームで編集中のデータ
 let editingId = null;  // null なら新規追加
 let addressManuallyEdited = false; // 住所欄をユーザーが自分で編集したか
-let lastAutoAddress = ""; // 施設名から自動入力した住所の直近の値（手動編集の判定に使用）
 
 /* ---------- ユーティリティ ---------- */
 
@@ -163,9 +162,6 @@ function showStatus(msg) {
     el.textContent = msg;
   }
 }
-
-/* ---------- Firestore 読み込み（リアルタイム同期・ログイン後に開始） ---------- */
-// 実際の読み込み処理は startListeningToPlaces() にまとめてあります（上部を参照）
 
 async function saveToFirestore(id, data) {
   try {
@@ -255,8 +251,6 @@ function starsStaticHtml(value, size) {
   return html;
 }
 
-const TRANSPORT_ICONS = { car: "🚗", bus: "🚌", walk: "🚶" };
-
 function visitSummaryHtml(visits) {
   if (!visits || visits.length === 0) return "";
   const sorted = [...visits].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -312,7 +306,7 @@ function render() {
   }
 
   const list = filteredPlaces();
-  const hasFilters = typeFilter !== "all" || weatherFilter.size > 0 || query;
+  const hasFilters = typeFilter !== "all" || statusFilter !== "all" || weatherFilter.size > 0 || query;
 
   if (list.length === 0) {
     grid.innerHTML = "";
@@ -439,6 +433,11 @@ function openForm(place) {
   document.getElementById("f-overallReview").value = draft.overallReview;
   document.getElementById("f-customType").value = draft.customType;
 
+  // 訪問記録の追加サブフォームはクリア
+  document.getElementById("v-date").value = "";
+  document.getElementById("v-note").value = "";
+  document.getElementById("v-weather").value = "sunny";
+
   renderPhotoRow();
   renderVisitList();
 
@@ -501,9 +500,7 @@ function updateFeatureUI() {
   });
 }
 
-const MAX_PHOTOS = 4;
-const MAX_PHOTO_WIDTH = 700;
-const PHOTO_QUALITY = 0.5;
+/* ---------- 訪問記録 ---------- */
 
 function renderVisitList() {
   const list = document.getElementById("visitList");
@@ -540,6 +537,19 @@ function renderVisitList() {
   });
 }
 
+function addPendingVisitIfAny() {
+  // 訪問記録の追加欄に日付が入ったまま「追加」を押し忘れていても、
+  // 保存時に自動でリストへ加える
+  const dateInput = document.getElementById("v-date");
+  const date = dateInput.value;
+  if (!date) return;
+  const weather = document.getElementById("v-weather").value;
+  const note = document.getElementById("v-note").value.trim();
+  draft.visits.push({ date, weather, note });
+  dateInput.value = "";
+  document.getElementById("v-note").value = "";
+}
+
 document.getElementById("addVisitBtn").addEventListener("click", () => {
   if (!draft) return;
   const date = document.getElementById("v-date").value;
@@ -555,20 +565,32 @@ document.getElementById("addVisitBtn").addEventListener("click", () => {
   renderVisitList();
 });
 
+/* ---------- 写真 ---------- */
+
+const MAX_PHOTOS = 4;
+const MAX_PHOTO_WIDTH = 700;
+const PHOTO_QUALITY = 0.5;
+
 function renderPhotoRow() {
   const row = document.getElementById("photoRow");
   row.innerHTML = "";
   (draft.photos || []).forEach((src, idx) => {
     const wrap = document.createElement("div");
     wrap.className = "oz-photo-thumb";
-    wrap.innerHTML = `<img src="${src}" alt=""><button type="button" class="oz-photo-remove" data-remove-idx="${idx}">✕</button>`;
+    wrap.innerHTML = `<img src="${src}" alt="" data-zoom-src="${src}"><button type="button" class="oz-photo-remove" data-remove-idx="${idx}">✕</button>`;
     row.appendChild(wrap);
   });
   row.querySelectorAll("[data-remove-idx]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const idx = Number(btn.getAttribute("data-remove-idx"));
       draft.photos.splice(idx, 1);
       renderPhotoRow();
+    });
+  });
+  row.querySelectorAll("[data-zoom-src]").forEach((img) => {
+    img.addEventListener("click", () => {
+      openLightbox(img.getAttribute("data-zoom-src"));
     });
   });
 }
@@ -614,6 +636,34 @@ document.getElementById("f-photoInput").addEventListener("change", async (e) => 
   }
 });
 
+/* ---------- 写真の拡大表示（ライトボックス） ---------- */
+
+function openLightbox(src) {
+  const lightbox = document.getElementById("photoLightbox");
+  document.getElementById("photoLightboxImg").src = src;
+  lightbox.hidden = false;
+}
+function closeLightbox() {
+  document.getElementById("photoLightbox").hidden = true;
+}
+
+document.getElementById("lightboxCloseBtn").addEventListener("click", closeLightbox);
+document.getElementById("photoLightbox").addEventListener("click", (e) => {
+  if (e.target.id === "photoLightbox") closeLightbox();
+});
+
+/* ---------- 地図ヘルパー ---------- */
+
+document.getElementById("f-name").addEventListener("input", (e) => {
+  if (!addressManuallyEdited) {
+    document.getElementById("f-address").value = e.target.value;
+  }
+});
+
+document.getElementById("f-address").addEventListener("input", () => {
+  addressManuallyEdited = true;
+});
+
 document.getElementById("f-mapsHelper").addEventListener("click", (e) => {
   e.preventDefault();
   const q = document.getElementById("f-address").value.trim() || document.getElementById("f-name").value.trim();
@@ -627,15 +677,7 @@ document.getElementById("f-mapsHelper").addEventListener("click", (e) => {
   window.open(`https://www.google.com/maps/dir/?${params.toString()}`, "_blank");
 });
 
-document.getElementById("f-name").addEventListener("input", (e) => {
-  if (!addressManuallyEdited) {
-    document.getElementById("f-address").value = e.target.value;
-  }
-});
-
-document.getElementById("f-address").addEventListener("input", () => {
-  addressManuallyEdited = true;
-});
+/* ---------- 種類・ステータス・移動手段の切り替え ---------- */
 
 document.getElementById("statusSegment").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-status-option]");
@@ -706,6 +748,8 @@ document.getElementById("saveBtn").addEventListener("click", async () => {
   draft.overallReview = document.getElementById("f-overallReview").value.trim();
   draft.customType = document.getElementById("f-customType").value.trim();
   draft.transportMode = draft.transportMode || "car";
+
+  addPendingVisitIfAny();
 
   await saveToFirestore(editingId, draft);
   closeForm();
