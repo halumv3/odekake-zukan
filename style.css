@@ -646,4 +646,39 @@ body {
   color: var(--c-ink);
   font-size: 16px;
   cursor: pointer;
+  z-index: 2;
 }
+.oz-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--c-ink);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.oz-lightbox-nav[hidden] { display: none; }
+.oz-lightbox-prev { left: 12px; }
+.oz-lightbox-next { right: 12px; }
+.oz-lightbox-counter {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--c-ink);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+.oz-lightbox-counter[hidden] { display: none; }

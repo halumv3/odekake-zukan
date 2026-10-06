@@ -588,9 +588,9 @@ function renderPhotoRow() {
       renderPhotoRow();
     });
   });
-  row.querySelectorAll("[data-zoom-src]").forEach((img) => {
+  row.querySelectorAll("[data-zoom-src]").forEach((img, idx) => {
     img.addEventListener("click", () => {
-      openLightbox(img.getAttribute("data-zoom-src"));
+      openLightbox(draft.photos, idx);
     });
   });
 }
@@ -638,18 +638,60 @@ document.getElementById("f-photoInput").addEventListener("change", async (e) => 
 
 /* ---------- 写真の拡大表示（ライトボックス） ---------- */
 
-function openLightbox(src) {
-  const lightbox = document.getElementById("photoLightbox");
-  document.getElementById("photoLightboxImg").src = src;
-  lightbox.hidden = false;
+let lightboxPhotos = [];
+let lightboxIndex = 0;
+
+function showLightboxPhoto(idx) {
+  if (lightboxPhotos.length === 0) return;
+  lightboxIndex = (idx + lightboxPhotos.length) % lightboxPhotos.length;
+  document.getElementById("photoLightboxImg").src = lightboxPhotos[lightboxIndex];
+  const counter = document.getElementById("lightboxCounter");
+  const prevBtn = document.getElementById("lightboxPrevBtn");
+  const nextBtn = document.getElementById("lightboxNextBtn");
+  const multi = lightboxPhotos.length > 1;
+  prevBtn.hidden = !multi;
+  nextBtn.hidden = !multi;
+  counter.hidden = !multi;
+  if (multi) counter.textContent = `${lightboxIndex + 1} / ${lightboxPhotos.length}`;
+}
+
+function openLightbox(photos, startIdx) {
+  lightboxPhotos = photos || [];
+  showLightboxPhoto(startIdx || 0);
+  document.getElementById("photoLightbox").hidden = false;
 }
 function closeLightbox() {
   document.getElementById("photoLightbox").hidden = true;
 }
+function lightboxPrev() { showLightboxPhoto(lightboxIndex - 1); }
+function lightboxNext() { showLightboxPhoto(lightboxIndex + 1); }
 
 document.getElementById("lightboxCloseBtn").addEventListener("click", closeLightbox);
+document.getElementById("lightboxPrevBtn").addEventListener("click", lightboxPrev);
+document.getElementById("lightboxNextBtn").addEventListener("click", lightboxNext);
 document.getElementById("photoLightbox").addEventListener("click", (e) => {
   if (e.target.id === "photoLightbox") closeLightbox();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (document.getElementById("photoLightbox").hidden) return;
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "ArrowLeft") lightboxPrev();
+  if (e.key === "ArrowRight") lightboxNext();
+});
+
+// スマホでの左右スワイプ
+let lightboxTouchStartX = null;
+document.getElementById("photoLightbox").addEventListener("touchstart", (e) => {
+  lightboxTouchStartX = e.changedTouches[0].clientX;
+});
+document.getElementById("photoLightbox").addEventListener("touchend", (e) => {
+  if (lightboxTouchStartX === null) return;
+  const deltaX = e.changedTouches[0].clientX - lightboxTouchStartX;
+  lightboxTouchStartX = null;
+  if (Math.abs(deltaX) < 40) return;
+  if (deltaX > 0) lightboxPrev();
+  else lightboxNext();
 });
 
 /* ---------- 地図ヘルパー ---------- */
